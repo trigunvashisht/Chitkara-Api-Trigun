@@ -166,38 +166,38 @@ app.post("/bfhl", async (req, res) => {
     }
 
     // AI
-    if (key === "AI") {
-      if (typeof value !== "string" || value.trim().length === 0) {
-        return res.status(400).json({
-          is_success: false,
-          official_email: EMAIL,
-          error: "AI must be a non-empty string"
-        });
+    // AI
+if (key === "AI") {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return res.status(400).json({
+      is_success: false,
+      official_email: EMAIL,
+      error: "AI must be a non-empty string"
+    });
+  }
+
+  const geminiUrl =
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+  const geminiResponse = await axios.post(geminiUrl, {
+    contents: [
+      {
+        parts: [{ text: `Answer in one word only: ${value}` }]
       }
+    ]
+  });
 
-      const geminiUrl =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  let answer =
+    geminiResponse.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unknown";
 
+  answer = answer.trim().split(" ")[0];
 
-      const geminiResponse = await axios.post(url, {
-        contents: [
-          {
-            parts: [{ text: `Answer in one word only: ${value}` }]
-          }
-        ]
-      });
-
-      let answer =
-        geminiResponse.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unknown";
-
-      answer = answer.trim().split(" ")[0];
-
-      return res.status(200).json({
-        is_success: true,
-        official_email: EMAIL,
-        data: answer
-      });
-    }
+  return res.status(200).json({
+    is_success: true,
+    official_email: EMAIL,
+    data: answer
+  });
+}
 
     // Invalid Key
     return res.status(400).json({
@@ -206,13 +206,16 @@ app.post("/bfhl", async (req, res) => {
       error: "Invalid key. Use fibonacci, prime, lcm, hcf, or AI"
     });
 
-  } catch (err) {
-    return res.status(500).json({
-      is_success: false,
-      official_email: EMAIL,
-      error: "Internal Server Error"
-    });
-  }
+} catch (error) {
+  console.log("AI Error:", error.response?.data || error.message);
+
+  return res.status(500).json({
+    is_success: false,
+    official_email: EMAIL,
+    error: "AI service failed"
+  });
+}
+
 });
 
 // Start server
