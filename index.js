@@ -9,10 +9,13 @@ app.use(express.json());
 
 const EMAIL = process.env.OFFICIAL_EMAIL;
 
-// Fibonacci
+
+
+// Fibonacci series
 function fibonacci(n) {
   let series = [];
   let a = 0, b = 1;
+
   for (let i = 0; i < n; i++) {
     series.push(a);
     [a, b] = [b, a + b];
@@ -42,18 +45,24 @@ function hcf(arr) {
   return arr.reduce((acc, val) => gcd(acc, val));
 }
 
-// LCM
+// LCM helper
 function lcmTwo(a, b) {
   return (a * b) / gcd(a, b);
 }
 
+// LCM
 function lcm(arr) {
   return arr.reduce((acc, val) => lcmTwo(acc, val));
 }
 
+
+app.get("/", (req, res) => {
+  res.send("Chitkara Qualifier API is running!");
+});
+
 // GET /health
 app.get("/health", (req, res) => {
-  res.status(200).json({
+  return res.status(200).json({
     is_success: true,
     official_email: EMAIL
   });
@@ -65,7 +74,7 @@ app.post("/bfhl", async (req, res) => {
     const body = req.body;
     const keys = Object.keys(body);
 
-    // must contain exactly 1 key
+    // Must contain exactly one key
     if (keys.length !== 1) {
       return res.status(400).json({
         is_success: false,
@@ -166,38 +175,47 @@ app.post("/bfhl", async (req, res) => {
     }
 
     // AI
-    // AI
-if (key === "AI") {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return res.status(400).json({
-      is_success: false,
-      official_email: EMAIL,
-      error: "AI must be a non-empty string"
-    });
-  }
-
-  const geminiUrl =
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-  const geminiResponse = await axios.post(geminiUrl, {
-    contents: [
-      {
-        parts: [{ text: `Answer in one word only: ${value}` }]
+    if (key === "AI") {
+      if (typeof value !== "string" || value.trim().length === 0) {
+        return res.status(400).json({
+          is_success: false,
+          official_email: EMAIL,
+          error: "AI must be a non-empty string"
+        });
       }
-    ]
-  });
 
-  let answer =
-    geminiResponse.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unknown";
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({
+          is_success: false,
+          official_email: EMAIL,
+          error: "GEMINI_API_KEY is missing in environment variables"
+        });
+      }
 
-  answer = answer.trim().split(" ")[0];
+      const geminiUrl =
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
-  return res.status(200).json({
-    is_success: true,
-    official_email: EMAIL,
-    data: answer
-  });
-}
+      const geminiResponse = await axios.post(geminiUrl, {
+        contents: [
+          {
+            parts: [
+              { text: `Answer in ONE WORD only. No explanation.\nQuestion: ${value}` }
+            ]
+          }
+        ]
+      });
+
+      let answer =
+        geminiResponse.data.candidates?.[0]?.content?.parts?.[0]?.text || "Unknown";
+
+      answer = answer.trim().split(/\s+/)[0];
+
+      return res.status(200).json({
+        is_success: true,
+        official_email: EMAIL,
+        data: answer
+      });
+    }
 
     // Invalid Key
     return res.status(400).json({
@@ -206,18 +224,17 @@ if (key === "AI") {
       error: "Invalid key. Use fibonacci, prime, lcm, hcf, or AI"
     });
 
-} catch (error) {
-  console.log("AI Error:", error.response?.data || error.message);
+  } catch (error) {
+    console.log("ERROR:", error.response?.data || error.message);
 
-  return res.status(500).json({
-    is_success: false,
-    official_email: EMAIL,
-    error: "AI service failed"
-  });
-}
-
+    return res.status(500).json({
+      is_success: false,
+      official_email: EMAIL,
+      error: "Internal Server Error"
+    });
+  }
 });
 
-// Start server
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
